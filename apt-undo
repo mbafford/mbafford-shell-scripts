@@ -1,0 +1,88 @@
+#!/usr/bin/perl -w
+
+# matthew@bafford.us
+# http://github.com/mbafford/mbafford-shell-scripts
+# Patches welcome.
+#
+# -----
+#
+# Script to help undo install commands found in apt's history log 
+# Used to test an application and then uninstall it - only uninstalling the packages
+# installed when installing the tested application.
+#
+# Looking at apt history log with syntax like:
+#
+#
+# Start-Date: 2012-01-11  10:18:01
+#Commandline: apt-get install jmeter
+#Install: jmeter-help:i386 (2.3.4-2ubuntu2, automatic), libcommons-collections3-java:i386 (3.2.1-5, automatic), libsaxon-java:i386 (6.5.5-7, automatic), libjcharts-java:i386 (0.7.5-2, automatic), liboro-java:i386 (2.0.8a-7, automatic), libxpp3-java:i386 (1.1.4c-1, automatic), jmeter-http:i386 (2.3.4-2ubuntu2, automatic), libcommons-jexl-java:i386 (1.1-2, automatic), jmeter:i386 (2.3.4-2ubuntu2), libhtmlparser-java:i386 (1.6.20060610.dfsg0-3, automatic), liblog4j1.2-java:i386 (1.2.15-11ubuntu1, automatic), libgeronimo-jms-1.1-spec-java:i386 (1.1-1fakesync1, automatic), libcommons-httpclient-java:i386 (3.1-10, automatic), libservlet2.4-java:i386 (5.0.30-12, automatic), libgeronimo-javamail-1.4-spec-java:i386 (1.2-0ubuntu1, automatic), libxml-commons-external-java:i386 (1.3.05-2, automatic), libxmlgraphics-commons-java:i386 (1.4.dfsg-3ubuntu1, automatic), libcommons-io-java:i386 (1.4-3, automatic), ant:i386 (1.8.2-3, automatic), libcommons-logging-java:i386 (1.1.1-8, automatic), libcommons-codec-java:i386 (1.5-1, automatic), libgnumail-java:i386 (1.1.2-5, automatic), fop:i386 (0.95.dfsg-11ubuntu2, automatic), libbsf-java:i386 (2.4.0-4, automatic), libbatik-java:i386 (1.7.ubuntu-6ubuntu1, automatic), libexcalibur-logkit-java:i386 (2.0-5, automatic), libxalan2-java:i386 (2.7.1-5ubuntu1, automatic), libavalon-framework-java:i386 (4.2.0-7, automatic), librhino-java:i386 (1.7R3-2, automatic), libexcalibur-logger-java:i386 (2.1-2, automatic), libgnuinet-java:i386 (1.1.1-4, automatic), rhino:i386 (1.7R3-2, automatic), libjtidy-java:i386 (7+svn20110807-2, automatic), libcommons-lang-java:i386 (2.4-4, automatic), ant-optional:i386 (1.8.2-3, automatic), libxstream-java:i386 (1.3.1-6, automatic), libgnujaf-java:i386 (1.1.1-5, automatic), java-wrappers:i386 (0.1.22, automatic)
+#End-Date: 2012-01-11  10:18:08
+#
+# Script slurps in the paragraphs, looks for the ones containing Install: (thus skipping the Remove: blocks), 
+# parses out the package names installed and then presents that list to the user either as an executed "apt-get remove"
+# or just echoes the apt-get remove command line.
+
+$/ = ""; # paragraph mode
+
+print @ARGV;
+if ( length(@ARGV) == 1 ) {
+    @ARGV = ('/var/log/apt/history.log');
+    print "No filename specified. Assuming path to apt log [${ARGV[0]}].\n\n";
+}
+
+my @commands;
+
+while ( <> ) {
+	next if !/^Install:/m;
+
+	($install)     = /^Install: (.*)$/m;
+	$install =~ s/Install: //;
+	$install =~ s/\([^)]+\)//g;
+
+	@apps = ($install =~ m/\s*([^\s:]*):(?:\S*)\s*/gi);
+
+    ($command) = /^Commandline: (.*)$/m;
+
+	push(@commands, {
+		'start' => /^Start-Date: (.*)$/m,
+		'end'   => /^End-Date: (.*)$/m,
+		'cmd'   => $command ? $command : 'no command line logged',
+		'apps'  => [@apps]
+	});
+}
+
+@commands = reverse @commands;
+
+$/ = "\n";
+
+foreach my $cmd ( @commands ) {
+	$pkgs = join(' ', @{$cmd->{'apps'}});
+
+	print "Apt Installation on " . $cmd->{'start'} . "\n";
+	if ( $cmd->{'cmd'} ) {
+		print "Command line: " . $cmd->{'cmd'} . "\n";
+	}
+
+	print "Installed: $pkgs\n";
+
+	print "\n";	
+	print "Uninstall packages? [yes / NO / echo / quit] ";
+
+	$answer = lc readline();
+	$answer =~ s/\s*//g;
+
+	$exec = "sudo apt-get remove " . join(' ', @{$cmd->{'apps'}});
+
+	if ( $answer eq 'yes' ) {
+        print  "\nExecuting...\n\n";
+		system $exec;
+	} elsif ( $answer eq 'echo' ) {
+		print "\n$exec\n";
+	} elsif ( $answer eq 'quit' ) {
+		exit;
+	} else {
+		print "... skipping\n";
+	}
+
+	print "\n\n";
+}

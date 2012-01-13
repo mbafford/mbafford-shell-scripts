@@ -1,2 +1,13 @@
 Various scripts I've written for my own personal use on my Linux boxes. 
 Hopefully these are of some use to someone else.
+
+---
+
+=apt-undo= Parse apt history log and prompt user to remove packages installed by previous apt commands. 
+
+For example, if you install jmeter and then realize that the jmeter that ships with Ubuntu is out of 
+date and installs way too many dependencies, you can quickly run apt-undo, find the install log for your jmeter
+install, and undo the install + all of the dependencies.
+
+This has been tested minimally on Linux Mint 12 and Ubuntu 10.04. If in doubt, remove the "sudo" on the exec
+or just answer the prompt with "echo" and run the apt-get remove yourself.
