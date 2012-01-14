@@ -11,3 +11,16 @@ install, and undo the install + all of the dependencies.
 
 This has been tested minimally on Linux Mint 12 and Ubuntu 10.04. If in doubt, remove the "sudo" on the exec
 or just answer the prompt with "echo" and run the apt-get remove yourself.
+
+---
+
+=updateAndroidVersion= Automatically update Android version code and name and commit and tag the change in git.
+
+Takes an AndroidManifest.xml file and updates the version code and version name so the application
+can be pushed as a new version to the Android marketplace.
+
+Version Code is incremented to the next number.
+Version Name is updated to retain the initial version info (e.g. 0.5.) and append the current date/time
+             stamp to the end so you end up with a version like 0.5.201201011234
+
+The changes are auto-committed to git and the release tagged in the repository.

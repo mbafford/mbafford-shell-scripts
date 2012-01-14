@@ -1,0 +1,38 @@
+#!/bin/bash
+# matthew@bafford.us
+# http://github.com/mbafford/mbafford-shell-scripts
+# Patches welcome.
+#
+# Takes an AndroidManifest.xml file and updates the version code and version name so the application
+# can be pushed as a new version to the Android marketplace.
+# 
+# Version Code is incremented to the next number.
+# Version Name is updated to retain the initial version info (e.g. 0.5.) and append the current date/time
+#              stamp to the end so you end up with a version like 0.5.201201011234
+# 
+# The changes are auto-committed to git and the release tagged in the repository.
+#
+MANIFEST_FILE='AndroidManifest.xml'
+
+if [ ! -f $MANIFEST_FILE ]; then
+    echo "No Android manifest file ($MANIFEST_FILE). Please run from your Android project root folder.";
+    exit 1
+fi;
+
+VERSIONCODE=`grep versionCode $MANIFEST_FILE | sed 's/.*versionCode="//;s/".*//'`
+VERSIONNAME=`grep versionName $MANIFEST_FILE | sed 's/.*versionName="//;s/\.[0-9]*".*//'`
+
+NEWCODE=$((1+$VERSIONCODE))
+NEWNAME=$VERSIONNAME.$(date +'%Y%m%d%H%M')
+
+echo "Updating Android build information. New version code: $NEWCODE - New version name: $NEWNAME";
+
+if ( ! git diff-index --cached --quiet HEAD --ignore-submodules -- || ! git diff-files --quiet --ignore-submodules -- ); then
+    echo "Repository has uncommitted changes. Please commit before running this so that build will be accurately tagged."
+    exit 1;
+fi;
+
+sed -i 's/versionCode *= *"'$VERSIONCODE'"/versionCode="'$NEWCODE'"/; s/versionName *= *"[^"]*"/versionName="'$NEWNAME'"/' $MANIFEST_FILE
+
+git commit -m 'AndroidManifest.xml: Automated update to: versionCode="'$NEWCODE'" versionName="'$NEWNAME'"' AndroidManifest.xml
+git tag Android_Version_$NEWNAME
